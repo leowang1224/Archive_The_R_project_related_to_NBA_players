@@ -1,0 +1,717 @@
+---
+title: "NBA-project"
+author: "Zhaoyang Wang"
+date: "4/6/2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r tidy=TRUE}
+#......preprocessing the data
+`NBA.Stats.2020.2021(1)`<-read.csv("~/Desktop/Rworkplace/group-project/NBA.Stats.2020.2021(1).csv")
+data1 <- `NBA.Stats.2020.2021(1)`
+str(data1)
+data1$MAIN.POS <- as.factor(data1$MAIN.POS)
+sum(is.na(data1))
+str(data1$MAIN.POS)
+
+#...Classified by player's game role
+main.pos.c <- subset(data1,MAIN.POS=="C")
+main.pos.g <- subset(data1,MAIN.POS=="G")
+main.pos.f <- subset(data1,MAIN.POS=="F")
+
+#...Among the players in the "C POS", look for strong influence points
+library(car)
+library(dplyr)
+options (warn = - 1) 
+c <- subset(main.pos.c,select = AGE:Salary)
+fit.c <- lm(Salary ~ ., data = c)
+
+c.influenceplot = influencePlot(fit.c,id.method="identify",main="Influent Plot",sub="Circle size is proportional to Cook's distance")
+
+c.influenceplot
+
+main.pos.c.filtered <- filter(main.pos.c, rownames(main.pos.c) != "3"& rownames(main.pos.c) != "4" & rownames(main.pos.c) != "307"& 
+rownames(main.pos.c) != "393")
+
+
+
+#...Among the players in the "F POS", look for strong influence points
+f <- subset(main.pos.f,select = AGE:Salary)
+fit.f <- lm(Salary ~ ., data = f)
+
+f.influenceplot = influencePlot(fit.f,id.method="identify",main="Influent Plot",sub="Circle size is proportional to Cook's distance")
+
+f.influenceplot
+
+main.pos.f.filtered <- filter(main.pos.f, rownames(main.pos.f) != "130"& rownames(main.pos.f) != "211" & rownames(main.pos.f) != "493"& 
+rownames(main.pos.f) != "503"& rownames(main.pos.f) != "511")
+
+
+
+#...Among the players in the "G POS", look for strong influence points
+g <- subset(main.pos.g,select = AGE:Salary)
+fit.g <- lm(Salary ~ ., data = g)
+
+g.influenceplot = influencePlot(fit.g,id.method="identify",main="Influent Plot",sub="Circle size is proportional to Cook's distance")
+
+g.influenceplot
+
+main.pos.g.filtered <- filter(main.pos.g, rownames(main.pos.g) != "90"& rownames(main.pos.g) != "194" & rownames(main.pos.g) != "289"& 
+rownames(main.pos.g) != "327"& rownames(main.pos.g) != "361")
+
+
+
+#...Build training and test sets for each class of players, with the training set being two-thirds of the dataset
+
+library(caTools)
+split.c <-  sample.split(main.pos.c.filtered$MAIN.POS,SplitRatio = 2/3)
+main.pos.c.train <- subset(main.pos.c.filtered,split.c == TRUE)
+main.pos.c.test <- subset(main.pos.c.filtered,split.c == FALSE)
+
+split.f <-  sample.split(main.pos.f.filtered$MAIN.POS,SplitRatio = 2/3)
+main.pos.f.train <- subset(main.pos.f.filtered,split.f == TRUE)
+main.pos.f.test <- subset(main.pos.f.filtered,split.f == FALSE)
+
+split.g <-  sample.split(main.pos.g.filtered$MAIN.POS,SplitRatio = 2/3)
+main.pos.g.train <- subset(main.pos.g.filtered,split.g == TRUE)
+main.pos.g.test <- subset(main.pos.g.filtered,split.g == FALSE)
+
+#...visualize the data
+library(leaps)
+library(corrgram)
+corrgram(main.pos.c.filtered, order=TRUE, lower.panel=panel.shade,upper.panel=panel.pie, text.panel=panel.txt)
+
+
+
+
+#......Variable subsetting using regsubsets
+#...regsubsetting of POS "C"
+c.fit <- main.pos.c.filtered[,5:30]
+regfit.full.c=regsubsets(Salary~.,data=c.fit,nvmax=25)
+
+reg.summary.c=summary(regfit.full.c)
+
+par(mfrow=c(1,1))
+plot(reg.summary.c$rss,xlab="Number of
+Variables",ylab="RSS",type="l")
+which.min(reg.summary.c$rss)
+points(25,reg.summary.c$adjr2[25], col="red",cex=2,pch=20)
+
+plot(reg.summary.c$adjr2,xlab="Number of
+Variables",ylab="Adjusted RSq",type="l")
+which.max(reg.summary.c$adjr2)
+points(9,reg.summary.c$adjr2[9], col="red",cex=2,pch=20)
+
+plot(reg.summary.c$cp,xlab="Number of
+Variables",ylab="Cp",type='l')
+which.min(reg.summary.c$cp)
+points(8,reg.summary.c$cp[8],col="red",cex=2,pch=20)
+
+plot(reg.summary.c$bic,xlab="Number of
+Variables",ylab="BIC",type='l')
+which.min(reg.summary.c$bic)
+points(3,reg.summary.c$bic[3],col="red",cex=2,pch=20)
+#best varible number is 9, and the name of the varibles are in the #reg.summary.c$which
+plot(regfit.full.c,scale="r2")
+plot(regfit.full.c,scale="adjr2")
+plot(regfit.full.c,scale="Cp")
+plot(regfit.full.c,scale="bic")
+
+#...regsubsetting of POS "F"
+f.fit <- main.pos.f.filtered[,5:30]
+regfit.full.f=regsubsets(Salary~.,data=f.fit,nvmax=25)
+
+reg.summary.f=summary(regfit.full.f)
+
+par(mfrow=c(1,1))
+plot(reg.summary.f$rss,xlab="Number of
+Variables",ylab="RSS",type="l")
+which.min(reg.summary.f$rss)
+points(25,reg.summary.f$adjr2[25], col="red",cex=2,pch=20)
+
+plot(reg.summary.f$adjr2,xlab="Number of
+Variables",ylab="Adjusted RSq",type="l")
+which.max(reg.summary.f$adjr2)
+points(9,reg.summary.f$adjr2[9], col="red",cex=2,pch=20)
+
+plot(reg.summary.f$cp,xlab="Number of
+Variables",ylab="Cp",type='l')
+which.min(reg.summary.f$cp)
+points(7,reg.summary.f$cp[7],col="red",cex=2,pch=20)
+
+plot(reg.summary.f$bic,xlab="Number of
+Variables",ylab="BIC",type='l')
+which.min(reg.summary.f$bic)
+points(4,reg.summary.f$bic[4],col="red",cex=2,pch=20)
+#best varible number is 9, and the name of the varibles are in the #reg.summary.f$which
+plot(regfit.full.f,scale="r2")
+plot(regfit.full.f,scale="adjr2")
+plot(regfit.full.f,scale="Cp")
+plot(regfit.full.f,scale="bic")
+
+#...regsubsetting of POS "G"
+g.fit <- main.pos.g.filtered[,5:30]
+regfit.full.g=regsubsets(Salary~.,data=g.fit,nvmax=25)
+
+reg.summary.g=summary(regfit.full.g)
+
+par(mfrow=c(1,1))
+plot(reg.summary.g$rss,xlab="Number of
+Variables",ylab="RSS",type="l")
+which.min(reg.summary.g$rss)
+points(25,reg.summary.g$adjr2[25], col="red",cex=2,pch=20)
+
+plot(reg.summary.g$adjr2,xlab="Number of
+Variables",ylab="Adjusted RSq",type="l")
+which.max(reg.summary.g$adjr2)
+points(15,reg.summary.g$adjr2[15], col="red",cex=2,pch=20)
+
+plot(reg.summary.g$cp,xlab="Number of
+Variables",ylab="Cp",type='l')
+which.min(reg.summary.g$cp)
+points(11,reg.summary.g$cp[11],col="red",cex=2,pch=20)
+
+plot(reg.summary.g$bic,xlab="Number of
+Variables",ylab="BIC",type='l')
+which.min(reg.summary.g$bic)
+points(5,reg.summary.g$bic[5],col="red",cex=2,pch=20)
+#best varible number is 15, and the name of the varibles are in the #reg.summary.g$which
+plot(regfit.full.g,scale="r2")
+plot(regfit.full.g,scale="adjr2")
+plot(regfit.full.g,scale="Cp")
+plot(regfit.full.g,scale="bic")
+
+#......linear regression
+#...linear regression for POS "C"(the variables based on the regsubsetting #results of POS "C")
+library(dplyr)
+c.fit.train = main.pos.c.train[,5:30]
+c.fit.test = main.pos.c.test[,5:30]
+reg.c.variables <- data.frame(reg.summary.c$which)
+reg.c.variables <- reg.c.variables[,-1]
+a <- which(reg.c.variables[9,]==TRUE)
+a. <- colnames(c.fit.train)[a]
+final.c.reg <- select(c.fit.train,col=a)
+colnames(final.c.reg) <- a.
+final.c.reg <- cbind(final.c.reg,c.fit.train[,26])
+colnames(final.c.reg)[10] <- "Salary"
+
+final.c.reg.test <- select(c.fit.test,col=a)
+colnames(final.c.reg.test) <- a.
+final.c.reg.test <- cbind(final.c.reg.test,c.fit.test[,26])
+colnames(final.c.reg.test)[10] <- "Salary"
+
+#linear fit
+c.linearfit <- lm(Salary ~.,data = final.c.reg)
+summary(c.linearfit)
+plot(c.linearfit)
+library(car)
+crPlots(c.linearfit)
+qqPlot(c.linearfit,id.method = "identify",simulate = TRUE,main = "Q-Q Plot")
+
+ncvTest(c.linearfit)
+marginalModelPlots(c.linearfit)
+
+#the accuracy of linear model prediction
+pre.c <- predict(c.linearfit,newdata=final.c.reg.test)
+mean((pre.c-c.fit.test$Salary)^2)
+
+#check the collinearity using vif function 
+vif(c.linearfit)
+#it's bigger than 4, collinearity exsits, so delete the varible with the #biggest vif-value and build a new linear model
+
+
+#new linear model and predict again
+c.linearfit1 <- lm(Salary ~ AGE+GP+TS.+PPG+TRB.+APG+BPG.+MIN.,data = final.c.reg)
+summary(c.linearfit1)
+vif(c.linearfit1)
+pre.c <- predict(c.linearfit1,newdata=final.c.reg.test)
+mean((pre.c-c.fit.test$Salary)^2)
+
+#...linear regression for POS "F"(the variables based on the regsubsetting #results of POS "F")
+library(dplyr)
+f.fit.train = main.pos.f.train[,5:30]
+f.fit.test = main.pos.f.test[,5:30]
+reg.f.variables <- data.frame(reg.summary.f$which)
+reg.f.variables <- reg.f.variables[,-1]
+a <- which(reg.f.variables[9,]==TRUE)
+a. <- colnames(f.fit.train)[a]
+final.f.reg <- select(f.fit.train,col=a)
+colnames(final.f.reg) <- a.
+final.f.reg <- cbind(final.f.reg,f.fit.train[,26])
+colnames(final.f.reg)[10] <- "Salary"
+
+final.f.reg.test <- select(f.fit.test,col=a)
+colnames(final.f.reg.test) <- a.
+final.f.reg.test <- cbind(final.f.reg.test,f.fit.test[,26])
+colnames(final.f.reg.test)[10] <- "Salary"
+
+#linear fit
+f.linearfit <- lm(Salary ~.,data = final.f.reg)
+summary(f.linearfit)
+plot(f.linearfit)
+library(car)
+crPlots(f.linearfit)
+qqPlot(f.linearfit,id.method = "identify",simulate = TRUE,main = "Q-Q Plot")
+
+ncvTest(f.linearfit)
+marginalModelPlots(f.linearfit)
+
+#the accuracy of linear model prediction
+pre.f <- predict(f.linearfit,newdata=final.f.reg.test)
+mean((pre.f-final.f.reg.test$Salary)^2)
+
+#check the collinearity using vif function 
+vif(f.linearfit)
+#it's bigger than 4, collinearity exsits, so delete the varible with the #biggest vif-value and build a new linear model
+
+
+#new linear model and predict again
+f.linearfit1 <- lm(Salary ~ AGE+MIN.+X2PA+X2P.+X3PA+PPG+APG+AST.,data = final.f.reg)
+summary(f.linearfit1)
+vif(f.linearfit1)
+pre.f <- predict(f.linearfit1,newdata=final.f.reg.test)
+mean((pre.f-final.f.reg.test$Salary)^2)
+
+#...linear regression for POS "G"(the variables based on the regsubsetting #results of POS "G")
+library(dplyr)
+g.fit.train = main.pos.g.train[,5:30]
+g.fit.test = main.pos.g.test[,5:30]
+reg.g.variables <- data.frame(reg.summary.g$which)
+reg.g.variables <- reg.g.variables[,-1]
+a <- which(reg.g.variables[15,]==TRUE)
+a. <- colnames(g.fit.train)[a]
+final.g.reg <- select(g.fit.train,col=a)
+colnames(final.g.reg) <- a.
+final.g.reg <- cbind(final.g.reg,g.fit.train[,26])
+colnames(final.g.reg)[16] <- "Salary"
+
+final.g.reg.test <- select(g.fit.test,col=a)
+colnames(final.g.reg.test) <- a.
+final.g.reg.test <- cbind(final.g.reg.test,g.fit.test[,26])
+colnames(final.g.reg.test)[16] <- "Salary"
+
+#linear fit
+g.linearfit <- lm(Salary ~.,data = final.g.reg)
+summary(g.linearfit)
+plot(g.linearfit)
+library(car)
+crPlots(g.linearfit)
+qqPlot(g.linearfit,id.method = "identify",simulate = TRUE,main = "Q-Q Plot")
+
+ncvTest(g.linearfit)
+marginalModelPlots(g.linearfit)
+
+#the accuracy of linear model prediction
+pre.g <- predict(g.linearfit,newdata=final.g.reg.test)
+mean((pre.g-final.g.reg.test$Salary)^2)
+
+#check the collinearity using vif function 
+vif(g.linearfit)
+#it's bigger than 4, collinearity exsits, so delete the varible with the #biggest vif-value and build a new linear model
+
+
+#new linear model and predict again
+g.linearfit1 <- lm(Salary ~ AGE+GP+MPG+USG.+FTA+X2PA+X2P.+X3PA+RPG+TRB.+APG+AST.+SPG+BPG.,data = final.g.reg)
+summary(g.linearfit1)
+vif(g.linearfit1)
+pre.g <- predict(g.linearfit1,newdata=final.g.reg.test)
+mean((pre.g-final.g.reg.test$Salary)^2)
+
+
+#......stepwise regression 
+#...stepwise regression for POS "C"
+library(MASS) 
+c.linearfit <- lm(Salary ~.,data =c.fit.train)
+stepAIC(c.linearfit,direction = "backward")
+
+#using the combination of varible with lowest AIC value and build a model
+c.linearfit = lm(formula = Salary ~ AGE + MPG + FT. + X3P. + eFG. + TS. +  RPG + PPG+ TRB.+ DRTG, data = c.fit.train)
+
+#check the accuracy of prediction
+pre.c <- predict(c.linearfit,newdata=c.fit.test)
+mean((pre.c-c.fit.test$Salary)^2)
+
+marginalModelPlots(c.linearfit)
+
+#...stepwise regression for POS "F"
+library(MASS) 
+f.linearfit <- lm(Salary ~.,data =f.fit.train)
+stepAIC(f.linearfit,direction = "backward")
+
+#using the combination of varible with lowest AIC value and build a model
+f.linearfit = lm(formula = Salary ~ AGE + GP + MPG + MIN. + PPG + APG, data = f.fit.train)
+
+#check the accuracy of prediction
+pre.f <- predict(f.linearfit,newdata=f.fit.test)
+mean((pre.f-f.fit.test$Salary)^2)
+
+marginalModelPlots(f.linearfit)
+
+#...stepwise regression for POS "G"
+library(MASS) 
+g.linearfit <- lm(Salary ~.,data =g.fit.train)
+stepAIC(g.linearfit,direction = "backward")
+
+#using the combination of varible with lowest AIC value and build a model
+g.linearfit = lm(formula = Salary ~ AGE + GP + MPG + USG. + X2PA + X3PA+PPG+TRB.+APG+BPG.+VI, data = g.fit.train)
+
+
+#check the accuracy of prediction
+pre.g <- predict(g.linearfit,newdata=g.fit.test)
+mean((pre.g-g.fit.test$Salary)^2)
+
+marginalModelPlots(f.linearfit)
+
+
+#......lasso regression
+#...lasso regression for POS "C"
+library(glmnet)
+c.fit.train <- main.pos.c.train[,5:30]
+c.fit.test <- main.pos.c.test[,5:30]
+library(caret)
+
+#center and scale the data
+scal <- preProcess(c.fit.train,method = c("center","scale"))
+c.fit.trains <- predict(scal,c.fit.train)
+c.fit.tests <- predict(scal,c.fit.test)
+
+#build the model with the best lambda parameter
+grid=10^seq(10,-2,length=100)
+X <- as.matrix(c.fit.trains[,1:25])
+Y <- c.fit.trains[,26]
+set.seed(1245)
+c.lasso <- cv.glmnet(X,Y,alpha = 1,lambda = grid,nfolds =10)
+plot(c.lasso)
+plot(c.lasso$glmnet.fit, "lambda", label = T)
+c.lasso.min <- c.lasso$lambda.min
+c.lasso.best <- glmnet(X,Y,alpha = 1,lambda =c.lasso.min)
+coef(c.lasso.best)
+
+#check the accuracy of the prediction
+c.fit.tests1=as.matrix(c.fit.test[,1:25])
+c.test.pre <- predict(c.lasso.best,newx=c.fit.tests1)
+library(mlr3measures)
+sprintf("mean absolute error after standardization: %f",mae(c.fit.tests$Salary,c.test.pre))
+test_pre_o <- as.vector(c.test.pre[,1] * scal$std[11] + scal$mean[11])
+sprintf("mean absolute error before standardization: %f",mae(c.fit.test$Salary,test_pre_o))
+
+#...lasso regression for POS "F"
+library(glmnet)
+f.fit.train <- main.pos.f.train[,5:30]
+f.fit.test <- main.pos.f.test[,5:30]
+library(caret)
+
+#center and scale the data
+scal <- preProcess(f.fit.train,method = c("center","scale"))
+f.fit.trains <- predict(scal,f.fit.train)
+f.fit.tests <- predict(scal,f.fit.test)
+
+#build the model with the best lambda parameter
+grid=10^seq(10,-2,length=100)
+X <- as.matrix(f.fit.trains[,1:25])
+Y <- f.fit.trains[,26]
+set.seed(1245)
+f.lasso <- cv.glmnet(X,Y,alpha = 1,lambda = grid,nfolds =10)
+plot(f.lasso)
+plot(f.lasso$glmnet.fit, "lambda", label = T)
+f.lasso.min <- f.lasso$lambda.min
+f.lasso.best <- glmnet(X,Y,alpha = 1,lambda =f.lasso.min)
+coef(f.lasso.best)
+
+#check the accuracy of the prediction
+f.fit.tests1=as.matrix(f.fit.test[,1:25])
+f.test.pre <- predict(f.lasso.best,newx=f.fit.tests1)
+library(mlr3measures)
+sprintf("mean absolute error after standardization: %f",mae(f.fit.tests$Salary,f.test.pre))
+test_pre_o <- as.vector(f.test.pre[,1] * scal$std[11] + scal$mean[11])
+sprintf("mean absolute error before standardization: %f",mae(f.fit.test$Salary,test_pre_o))
+
+#...lasso regression for POS "G"
+library(glmnet)
+g.fit.train <- main.pos.g.train[,5:30]
+g.fit.test <- main.pos.g.test[,5:30]
+library(caret)
+
+#center and scale the data
+scal <- preProcess(g.fit.train,method = c("center","scale"))
+g.fit.trains <- predict(scal,g.fit.train)
+g.fit.tests <- predict(scal,g.fit.test)
+
+#build the model with the best lambda parameter
+grid=10^seq(10,-2,length=100)
+X <- as.matrix(g.fit.trains[,1:25])
+Y <- g.fit.trains[,26]
+set.seed(1245)
+g.lasso <- cv.glmnet(X,Y,alpha = 1,lambda = grid,nfolds =10)
+plot(g.lasso)
+plot(g.lasso$glmnet.fit, "lambda", label = T)
+g.lasso.min <- g.lasso$lambda.min
+g.lasso.best <- glmnet(X,Y,alpha = 1,lambda =g.lasso.min)
+coef(c.lasso.best)
+
+#check the accuracy of the prediction
+g.fit.tests1=as.matrix(g.fit.test[,1:25])
+g.test.pre <- predict(g.lasso.best,newx=g.fit.tests1)
+library(mlr3measures)
+sprintf("mean absolute error after standardization: %f",mae(g.fit.tests$Salary,g.test.pre))
+test_pre_o <- as.vector(g.test.pre[,1] * scal$std[11] + scal$mean[11])
+sprintf("mean absolute error before standardization: %f",mae(g.fit.test$Salary,test_pre_o))
+
+#......ridge regression
+#...ridge regression for POS "C"
+library(glmnet)
+c.fit.train <- main.pos.c.train[,5:30]
+c.fit.test <- main.pos.c.test[,5:30]
+library(caret)
+
+#center and scale the data
+scal <- preProcess(c.fit.train,method = c("center","scale"))
+c.fit.trains <- predict(scal,c.fit.train)
+c.fit.tests <- predict(scal,c.fit.test)
+
+#build the model with the best lambda parameter
+grid=10^seq(10,-2,length=100)
+X <- as.matrix(c.fit.trains[,1:25])
+Y <- c.fit.trains[,26]
+set.seed(1245)
+c.ridge <- cv.glmnet(X,Y,alpha = 0,lambda = grid,nfolds =10)
+plot(c.ridge)
+plot(c.ridge$glmnet.fit, "lambda", label = T)
+c.ridge.min <- c.ridge$lambda.min
+c.ridge.best <- glmnet(X,Y,alpha = 0,lambda =c.ridge.min)
+coef(c.ridge.best)
+
+#check the accuracy of the prediction
+c.test.pre <- predict(c.ridge.best,newx=as.matrix(c.fit.tests[,1:25]))
+library(mlr3measures)
+sprintf("mean absolute error after standardization: %f",mae(c.fit.tests$Salary,c.test.pre))
+test_pre_o <- as.vector(c.test.pre[,1] * scal$std[11] + scal$mean[11])
+sprintf("mean absolute error before standardization: %f",mae(c.fit.test$Salary,test_pre_o))
+
+#...ridge regression for POS "F"
+library(glmnet)
+f.fit.train <- main.pos.f.train[,5:30]
+f.fit.test <- main.pos.f.test[,5:30]
+library(caret)
+
+#center and scale the data
+scal <- preProcess(f.fit.train,method = c("center","scale"))
+f.fit.trains <- predict(scal,f.fit.train)
+f.fit.tests <- predict(scal,f.fit.test)
+
+#build the model with the best lambda parameter
+grid=10^seq(10,-2,length=100)
+X <- as.matrix(f.fit.trains[,1:25])
+Y <- f.fit.trains[,26]
+set.seed(1245)
+f.ridge <- cv.glmnet(X,Y,alpha = 0,lambda = grid,nfolds =10)
+plot(f.ridge)
+plot(f.ridge$glmnet.fit, "lambda", label = T)
+f.ridge.min <- f.ridge$lambda.min
+f.ridge.best <- glmnet(X,Y,alpha = 0,lambda =f.ridge.min)
+coef(f.ridge.best)
+
+#check the accuracy of the prediction
+f.test.pre <- predict(f.ridge.best,newx=as.matrix(f.fit.tests[,1:25]))
+library(mlr3measures)
+sprintf("mean absolute error after standardization: %f",mae(f.fit.tests$Salary,f.test.pre))
+test_pre_o <- as.vector(f.test.pre[,1] * scal$std[11] + scal$mean[11])
+sprintf("mean absolute error before standardization: %f",mae(f.fit.test$Salary,test_pre_o))
+
+#...ridge regression for POS "G"
+library(glmnet)
+g.fit.train <- main.pos.g.train[,5:30]
+g.fit.test <- main.pos.g.test[,5:30]
+library(caret)
+
+#center and scale the data
+scal <- preProcess(g.fit.train,method = c("center","scale"))
+g.fit.trains <- predict(scal,g.fit.train)
+g.fit.tests <- predict(scal,g.fit.test)
+
+#build the model with the best lambda parameter
+grid=10^seq(10,-2,length=100)
+X <- as.matrix(g.fit.trains[,1:25])
+Y <- g.fit.trains[,26]
+set.seed(1245)
+g.ridge <- cv.glmnet(X,Y,alpha = 0,lambda = grid,nfolds =10)
+plot(g.ridge)
+plot(g.ridge$glmnet.fit, "lambda", label = T)
+g.ridge.min <- g.ridge$lambda.min
+g.ridge.best <- glmnet(X,Y,alpha = 0,lambda =g.ridge.min)
+coef(g.ridge.best)
+
+#check the accuracy of the prediction
+g.test.pre <- predict(g.ridge.best,newx=as.matrix(g.fit.tests[,1:25]))
+library(mlr3measures)
+sprintf("mean absolute error after standardization: %f",mae(g.fit.tests$Salary,g.test.pre))
+test_pre_o <- as.vector(g.test.pre[,1] * scal$std[11] + scal$mean[11])
+sprintf("mean absolute error before standardization: %f",mae(g.fit.test$Salary,test_pre_o))
+
+#......neral network
+#...neural network for POS "C"
+#normalize the data
+library(BBmisc)
+c.fit.train.neural = normalize(
+  c.fit.train,
+  method = "range",
+  range = c(0,1),
+  margin = 2,
+  on.constant = "quiet"
+)
+c.fit.test.neural = normalize(
+  c.fit.test,
+  method = "range",
+  range = c(0,1),
+  margin = 2,
+  on.constant = "quiet"
+)
+
+#build the 2 layer 3 node neuralnetwork model
+library(neuralnet)
+n <- names(c.fit.train.neural)
+f <- as.formula(paste("Salary ~", paste(n[!n %in% "Salary"],
+collapse = " + ")))
+nn <- neuralnet(f,data=c.fit.train.neural,hidden=c(2,3),linear.output=T)
+plot(nn)
+
+#use compute function to get the MSE on the test set
+pr.nn <- compute(nn,c.fit.test.neural[,1:25])
+pr.nn_ <- pr.nn$net.result*(max(c.fit.test.neural$Salary)-
+min(c.fit.test.neural$Salary))+min(c.fit.test.neural$Salary)
+test.r <- (c.fit.test.neural$Salary)*(max(c.fit.test.neural$Salary)-
+min(c.fit.test.neural$Salary))+min(c.fit.test.neural$Salary)
+MSE.nn <- sum((test.r - pr.nn_)^2)/nrow(c.fit.test.neural)
+MSE.nn
+
+
+#build the 2 layer 5 node neuralnetwork model
+library(neuralnet)
+n <- names(c.fit.train.neural)
+f <- as.formula(paste("Salary ~", paste(n[!n %in% "Salary"],
+collapse = " + ")))
+nn <- neuralnet(f,data=c.fit.train.neural,hidden=c(2,5),linear.output=T)
+plot(nn)
+
+#use compute function to get the MSE on the test set
+pr.nn <- compute(nn,c.fit.test.neural[,1:25])
+pr.nn_ <- pr.nn$net.result*(max(c.fit.test.neural$Salary)-
+min(c.fit.test.neural$Salary))+min(c.fit.test.neural$Salary)
+test.r <- (c.fit.test.neural$Salary)*(max(c.fit.test.neural$Salary)-
+min(c.fit.test.neural$Salary))+min(c.fit.test.neural$Salary)
+MSE.nn <- sum((test.r - pr.nn_)^2)/nrow(c.fit.test.neural)
+MSE.nn
+
+#...neural network for POS "F"
+#normalize the data
+f.fit.train.neural = normalize(
+  f.fit.train,
+  method = "range",
+  range = c(0,1),
+  margin = 2,
+  on.constant = "quiet"
+)
+f.fit.test.neural = normalize(
+  f.fit.test,
+  method = "range",
+  range = c(0,1),
+  margin = 2,
+  on.constant = "quiet"
+)
+
+#build the 2 layer 3 node neuralnetwork model
+library(neuralnet)
+n <- names(f.fit.train.neural)
+f <- as.formula(paste("Salary ~", paste(n[!n %in% "Salary"],
+collapse = " + ")))
+nn <- neuralnet(f,data=f.fit.train.neural,hidden=c(2,3),linear.output=T)
+plot(nn)
+
+#use compute function to get the MSE on the test set
+pr.nn <- compute(nn,f.fit.test.neural[,1:25])
+pr.nn_ <- pr.nn$net.result*(max(f.fit.test.neural$Salary)-
+min(f.fit.test.neural$Salary))+min(f.fit.test.neural$Salary)
+test.r <- (f.fit.test.neural$Salary)*(max(f.fit.test.neural$Salary)-
+min(f.fit.test.neural$Salary))+min(f.fit.test.neural$Salary)
+MSE.nn <- sum((test.r - pr.nn_)^2)/nrow(f.fit.test.neural)
+MSE.nn
+
+
+#build the 2 layer 5 node neuralnetwork model
+library(neuralnet)
+n <- names(f.fit.train.neural)
+f <- as.formula(paste("Salary ~", paste(n[!n %in% "Salary"],
+collapse = " + ")))
+nn <- neuralnet(f,data=f.fit.train.neural,hidden=c(2,5),linear.output=T)
+plot(nn)
+
+#use compute function to get the MSE on the test set
+pr.nn <- compute(nn,f.fit.test.neural[,1:25])
+pr.nn_ <- pr.nn$net.result*(max(f.fit.test.neural$Salary)-
+min(f.fit.test.neural$Salary))+min(f.fit.test.neural$Salary)
+test.r <- (f.fit.test.neural$Salary)*(max(f.fit.test.neural$Salary)-
+min(f.fit.test.neural$Salary))+min(f.fit.test.neural$Salary)
+MSE.nn <- sum((test.r - pr.nn_)^2)/nrow(f.fit.test.neural)
+MSE.nn
+
+#...neural network for POS "G"
+#normalize the data
+g.fit.train.neural = normalize(
+  g.fit.train,
+  method = "range",
+  range = c(0,1),
+  margin = 2,
+  on.constant = "quiet"
+)
+g.fit.test.neural = normalize(
+  g.fit.test,
+  method = "range",
+  range = c(0,1),
+  margin = 2,
+  on.constant = "quiet"
+)
+
+#build the 2 layer 3 node neuralnetwork model
+library(neuralnet)
+n <- names(g.fit.train.neural)
+f <- as.formula(paste("Salary ~", paste(n[!n %in% "Salary"],
+collapse = " + ")))
+nn <- neuralnet(f,data=g.fit.train.neural,hidden=c(2,3),linear.output=T)
+plot(nn)
+
+#use compute function to get the MSE on the test set
+pr.nn <- compute(nn,g.fit.test.neural[,1:25])
+pr.nn_ <- pr.nn$net.result*(max(g.fit.test.neural$Salary)-
+min(g.fit.test.neural$Salary))+min(g.fit.test.neural$Salary)
+test.r <- (g.fit.test.neural$Salary)*(max(g.fit.test.neural$Salary)-
+min(g.fit.test.neural$Salary))+min(g.fit.test.neural$Salary)
+MSE.nn <- sum((test.r - pr.nn_)^2)/nrow(g.fit.test.neural)
+MSE.nn
+
+
+#build the 2 layer 5 node neuralnetwork model
+library(neuralnet)
+n <- names(g.fit.train.neural)
+f <- as.formula(paste("Salary ~", paste(n[!n %in% "Salary"],
+collapse = " + ")))
+nn <- neuralnet(f,data=g.fit.train.neural,hidden=c(2,5),linear.output=T)
+plot(nn)
+
+#use compute function to get the MSE on the test set
+pr.nn <- compute(nn,g.fit.test.neural[,1:25])
+pr.nn_ <- pr.nn$net.result*(max(g.fit.test.neural$Salary)-
+min(g.fit.test.neural$Salary))+min(g.fit.test.neural$Salary)
+test.r <- (g.fit.test.neural$Salary)*(max(g.fit.test.neural$Salary)-
+min(g.fit.test.neural$Salary))+min(g.fit.test.neural$Salary)
+MSE.nn <- sum((test.r - pr.nn_)^2)/nrow(g.fit.test.neural)
+MSE.nn
+```
+
