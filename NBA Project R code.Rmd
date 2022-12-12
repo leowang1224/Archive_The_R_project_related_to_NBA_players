@@ -1,5 +1,5 @@
 ---
-title: "group-project"
+title: "NBA-project"
 author: "Zhaoyang Wang"
 date: "4/6/2022"
 output:
